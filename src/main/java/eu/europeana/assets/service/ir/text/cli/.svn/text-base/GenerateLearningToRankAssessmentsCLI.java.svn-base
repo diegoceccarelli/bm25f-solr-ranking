@@ -1,0 +1,265 @@
+/**
+ *  Copyright 2011 Diego Ceccarelli
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+package eu.europeana.assets.service.ir.text.cli;
+
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.FilenameFilter;
+import java.io.IOException;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.log4j.Logger;
+import org.apache.solr.client.solrj.SolrQuery;
+
+import eu.europeana.assets.common.exception.ObjectNotFoundException;
+import eu.europeana.assets.common.exception.ObjectNotStoredException;
+import eu.europeana.assets.service.ir.text.IRTextConfiguration;
+import eu.europeana.assets.service.ir.text.domain.QueryAssessment;
+import eu.europeana.assets.service.ir.text.querylog.reader.ng.EuropeanaJsonSessionReader;
+import eu.europeana.assets.service.ir.text.querylog.session.ng.Session;
+import eu.europeana.assets.service.ir.text.util.Util;
+import eu.europeana.assets.utils.KeyAndFrequency;
+import eu.europeana.assets.utils.Multiset;
+
+/**
+ * AbstractCommandLineInterface.java
+ * 
+ * @author Diego Ceccarelli, diego.ceccarelli@isti.cnr.it created on 09/ott/2011
+ */
+
+public class GenerateLearningToRankAssessmentsCLI extends
+		AbstractCommandLineInterface {
+
+	private static Logger logger = Logger
+			.getLogger(GenerateLearningToRankAssessmentsCLI.class);
+	protected static String usage = "java -cp $jar "
+			+ GenerateLearningToRankAssessmentsCLI.class
+			+ " -input json sessions directory -from start date -n number assessment";
+
+	private final static String DATE = "from";
+	private final static String NUMBER_ASSESSMENTS = "n";
+
+	private static IRTextConfiguration irTextConfig;
+
+	protected static String[] params = new String[] { INPUT, DATE,
+			NUMBER_ASSESSMENTS };
+
+	public GenerateLearningToRankAssessmentsCLI(String[] args) {
+		super(args);
+		irTextConfig = new IRTextConfiguration();
+		irTextConfig.init();
+	}
+
+	public GenerateLearningToRankAssessmentsCLI(String[] args,
+			String[] parameters, String usage) {
+		super(args, parameters, usage);
+		irTextConfig = new IRTextConfiguration();
+		irTextConfig.init();
+	}
+
+	public static void main(String[] args) throws ObjectNotStoredException,
+			ObjectNotFoundException {
+
+		GenerateLearningToRankAssessmentsCLI cli = new GenerateLearningToRankAssessmentsCLI(
+				args, params, usage);
+		Date startingDate = null;
+		try {
+			startingDate = parseDate(cli.getParam(DATE));
+		} catch (ParseException e) {
+			logger.error("invalid format for date, please provide a date in format: dd/MM/yyyy");
+			System.exit(-1);
+		}
+		int numberOfAssessments = 100;
+		try {
+			numberOfAssessments = Integer.parseInt(cli
+					.getParam(NUMBER_ASSESSMENTS));
+		} catch (NumberFormatException e) {
+			logger.error("error parsing the number of the assessments, please provide a number");
+			System.exit(-1);
+		}
+		String inputDirectory = cli.getInput();
+		File f = new File(inputDirectory);
+		if (!(f.isDirectory())) {
+			logger.error("input should be a directory containing the virtual documents in json format");
+			System.exit(-1);
+		}
+
+		Multiset<String> frequencies = new Multiset<String>();
+		List<String> legalFiles = new ArrayList<String>();
+		for (String file : f.list(cli.new JsonFilter())) {
+			List<Session> sessions = Collections.EMPTY_LIST;
+			logger.info("reading file " + file);
+			EuropeanaJsonSessionReader reader = new EuropeanaJsonSessionReader(
+					new File(f, file).toString());
+			Iterator<Session> iterator = reader.iterator();
+			if (!iterator.hasNext())
+				continue;
+
+			Date lastRecordDate = iterator.next().getStartTime();
+			if (lastRecordDate.before(startingDate))
+				continue;
+			legalFiles.add(file);
+			
+			for (Session s : reader) {
+				for (String q : s.getQueries()) {
+					q = Util.cleanQuery(q);
+					if (q.matches("[a-zA-Z0-9 ]+"))
+						frequencies.add(q,1);
+				}
+			}
+		}
+
+		List<KeyAndFrequency> freqs = frequencies.sortByDescFrequency();
+		List<String> topKqueries = new ArrayList<String>();
+		Map<String, Multiset<String>> assessments = new HashMap<String, Multiset<String>>();
+		if (freqs.isEmpty()){
+			logger.error("no queries in the folder");
+			System.exit(-1);
+		}
+		
+		
+		for (int i = 0; i < numberOfAssessments; i++) {
+			topKqueries.add((String)freqs.get(i).getKey());
+			assessments.put((String)freqs.get(i).getKey(), new Multiset<String>());
+		}
+
+		for (String file : legalFiles) {
+			List<Session> sessions = Collections.EMPTY_LIST;
+			logger.info("reading file " + file);
+			EuropeanaJsonSessionReader reader = new EuropeanaJsonSessionReader(
+					new File(f, file).toString());
+
+			for (Session s : reader) {
+				if (s.isSuccessful()) {
+
+					String clickedRecord = s.getLastClick();
+					String query = Util.cleanQuery(s
+							.getLastQuery());
+					if (assessments.containsKey(query)) {
+						Multiset<String> m = assessments.get(query);
+						m.add(clickedRecord,1 );
+					}
+				}
+			}
+		}
+		
+		String assessmentsPath = irTextConfig
+				.getConfigProperty("assessments_folder");
+		
+		if (assessmentsPath == null){
+			logger.error("please set the path of the assessment folder in the ir-text.properties file\n");
+			logger.error("e.g., assessments_folder = /tmp/assessment");
+			System.exit(-1);
+		}
+		File assessmentsFolder = new File(assessmentsPath);
+		if (!assessmentsFolder.exists()) {
+			logger.info("assessment folder \"" + assessmentsPath
+					+ "\" does not exist, created");
+			assessmentsFolder.mkdir();
+		}
+		
+		
+		assessmentsFolder = new File(assessmentsPath);
+		if(assessmentsFolder.list() == null){
+			logger.error("wrong path for assessment folder "+ assessmentsPath);
+			System.exit(-1);
+		}
+
+		if (assessmentsFolder.list().length > 0) {
+			logger.info("assessment folder must be empty");
+			System.exit(-1);
+		}
+
+		for (int i = 0; i < numberOfAssessments; i++) {
+			KeyAndFrequency m = freqs.get(i);
+			String query = (String)m.getKey();
+			try {
+
+				List<KeyAndFrequency> ass = assessments.get(
+						m.getKey()).sortByFrequency();
+				if (!ass.isEmpty()) {
+					logger.info("generate assessment for query " + query);
+					FileWriter fstream = new FileWriter(assessmentsFolder
+							+ "/query" + (i + 1) + ".dat");
+					BufferedWriter out = new BufferedWriter(fstream);
+					out.write("#QUERY= " + query + "\n");
+					for (KeyAndFrequency record : ass) {
+						if (cli.isRecordInTheIndex((String)record.getKey())) {
+							logger.debug(record.getKey() + " is in the index");
+							out.write(record.getFreq() + "\t" + "/"+record.getKey()
+									+ "\n");
+						}
+					}
+					out.close();
+				}
+			} catch (IOException e) {
+				logger.error("creating the assessment files (" + e.toString()
+						+ " ) ");
+				System.exit(-1);
+
+			}
+		}
+
+		long end = System.currentTimeMillis();
+
+		System.exit(0);
+
+	}
+
+	public boolean isRecordInTheIndex(String recordId) {
+		SolrQuery sq = new SolrQuery();
+		sq.setRows(1);
+		sq.setQuery("europeana_uri:http\\://www.europeana.eu/resolve/record/"
+				+ recordId);
+		logger.info("check record = " + sq);
+		List<String> results = QueryAssessment.retrieveTopDocuments(sq);
+		return (results.size() > 0);
+	}
+
+	/**
+	 * Parse a date in format "dd/MM/yyyy"
+	 * 
+	 * @param param
+	 * @return
+	 * @throws ParseException
+	 */
+	private static Date parseDate(String date) throws ParseException {
+
+		DateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
+		Date d = (Date) formatter.parse(date);
+		return d;
+	}
+
+	class JsonFilter implements FilenameFilter {
+
+		public boolean accept(File dir, String name) {
+			return (name.endsWith(".json")) || (name.endsWith(".json.gz"));
+		}
+		
+	
+	}
+
+}

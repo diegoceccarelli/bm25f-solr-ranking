@@ -1,0 +1,59 @@
+K 25
+svn:wc:ra_dav:version-url
+V 122
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/util
+END
+ItemReader.java
+K 25
+svn:wc:ra_dav:version-url
+V 138
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/util/ItemReader.java
+END
+LRUCache.java
+K 25
+svn:wc:ra_dav:version-url
+V 136
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/util/LRUCache.java
+END
+Multiset.java
+K 25
+svn:wc:ra_dav:version-url
+V 136
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/util/Multiset.java
+END
+IOUtils.java
+K 25
+svn:wc:ra_dav:version-url
+V 135
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/util/IOUtils.java
+END
+InvalidSessionException.java
+K 25
+svn:wc:ra_dav:version-url
+V 151
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/util/InvalidSessionException.java
+END
+BaseItemReader.java
+K 25
+svn:wc:ra_dav:version-url
+V 142
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/util/BaseItemReader.java
+END
+KeyAndFrequency.java
+K 25
+svn:wc:ra_dav:version-url
+V 143
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/util/KeyAndFrequency.java
+END
+Util.java
+K 25
+svn:wc:ra_dav:version-url
+V 132
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/util/Util.java
+END
+Item.java
+K 25
+svn:wc:ra_dav:version-url
+V 132
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/util/Item.java
+END

@@ -1,0 +1,154 @@
+/**
+ *  Copyright 2011 Diego Ceccarelli
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+package eu.europeana.assets.service.ir.text.cli;
+
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.util.List;
+
+import org.apache.log4j.Logger;
+import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.impl.CommonsHttpSolrServer;
+import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrDocumentList;
+import org.apache.solr.common.SolrInputDocument;
+
+import eu.europeana.assets.common.exception.ObjectNotFoundException;
+import eu.europeana.assets.common.exception.ObjectNotStoredException;
+import eu.europeana.assets.service.ir.text.IRTextConfiguration;
+import eu.europeana.assets.service.ir.text.domain.VirtualDocument;
+
+/**
+ * StoreJsonLogsOnMongoDbCLI.java
+ * 
+ * @author Diego Ceccarelli, diego.ceccarelli@isti.cnr.it created on 09/ott/2011
+ */
+
+public class IndexSuggestionsCLI extends AbstractCommandLineInterface {
+
+	private static Logger logger = Logger.getLogger(IndexSuggestionsCLI.class);
+	protected static String usage = "java -cp $jar "
+			+ IndexSuggestionsCLI.class + " -input fileinput";
+
+	private static IRTextConfiguration irTextConfig;
+
+	protected static String[] params = new String[] { INPUT };
+
+	private static CommonsHttpSolrServer server;
+
+	public IndexSuggestionsCLI(String[] args) throws MalformedURLException {
+		super(args);
+
+		irTextConfig = new IRTextConfiguration();
+		irTextConfig.init();
+		server = new CommonsHttpSolrServer(
+				irTextConfig.getConfigProperty("solr.server.suggestion"));
+	}
+
+	public IndexSuggestionsCLI(String[] args, String[] parameters, String usage)
+			throws MalformedURLException {
+		super(args, parameters, usage);
+
+		irTextConfig = new IRTextConfiguration();
+		irTextConfig.init();
+		server = new CommonsHttpSolrServer(
+				irTextConfig.getConfigProperty("solr.server.suggestion"));
+
+	}
+
+	public static void main(String[] args) throws ObjectNotStoredException,
+			ObjectNotFoundException, SolrServerException, IOException {
+
+		IndexSuggestionsCLI cli = new IndexSuggestionsCLI(args, params, usage);
+
+		try {
+			cli.openInput();
+		} catch (IOException e1) {
+			logger.error("error reading session from file ( " + e1.toString()
+					+ " ) ");
+			System.exit(-1);
+		}
+
+		String input = cli.getInput();
+
+		long start = System.currentTimeMillis();
+		logger.info("indexing virtual documents in " + input + " in solr");
+
+		String line;
+		int sessions = 0;
+
+		while ((line = cli.readLineFromInput()) != null) {
+			VirtualDocument vd = VirtualDocument.fromJson(line);
+			System.out.println(vd.toString());
+			sessions++;
+			try {
+				updateSuggestion(vd.getLabel(), vd.getVirtualDocument());
+			} catch (SolrServerException e) {
+				logger.error("error indexing the suggestion for label "
+						+ vd.getLabel() + " ( " + e.toString() + " ) ");
+			}
+		}
+
+		server.commit();
+		long end = System.currentTimeMillis();
+		logger.info("added " + sessions + " sessions records in "
+				+ (end - start) + " millis");
+		// String json =
+		// "{\"start\":\"Feb 13, 2011 5:02:51 AM\",\"end\":\"Feb 13, 2011 5:02:51 AM\",\"country\":\"Netherlands\",\"successful\":false,\"ip\":\"80.101.129.147\",\"userAgent\":\"check_http/v1.4.14 (nagios-plugins 1.4.14)\",\"queries\":[\"mozart\"],\"session\":[{\"query\":\"mozart\",\"cleanQuery\":\"mozart\",\"date\":\"Feb 13, 2011 5:02:51 AM\",\"page\":\"1\",\"hasQuery\":true,\"hasClick\":false}]}";
+		System.exit(0);
+
+	}
+
+	private static void updateSuggestion(String label,	
+			List<String> virtualDocument) throws SolrServerException,
+			IOException {
+
+		SolrQuery solrQuery = new SolrQuery();
+		solrQuery.setQuery("id:" + Math.abs(label.hashCode()));
+		QueryResponse qr = server.query(solrQuery);
+		SolrDocumentList res = qr.getResults();
+		SolrInputDocument sid = new SolrInputDocument();
+
+		if (res.getNumFound() == 0) {
+			// new suggestion
+			sid.addField("id", Math.abs(label.hashCode()));
+			sid.addField("label", label);
+			sid.addField("freq", 1);
+			sid.addField("size", virtualDocument.size());
+			sid.addField("virtualDocument", virtualDocument.toString());
+			server.add(sid);
+			server.commit();
+		} else {
+			SolrDocument sd = res.get(0);
+			int freq = (Integer) sd.getFieldValue("freq");
+			int size = (Integer) sd.getFieldValue("size");
+			String vd = sd.getFieldValue("virtualDocument").toString();
+			sid.addField("id", Math.abs(label.hashCode()));
+			sid.addField("label", label);
+			sid.addField("freq", freq + 1);
+			sid.addField("size", size + virtualDocument.size());
+			sid.addField("virtualDocument", vd + virtualDocument.toString());
+			server.deleteById(((Integer) label.hashCode()).toString());
+			server.commit();
+			server.add(sid);
+			server.commit();
+		}
+
+	}
+
+}

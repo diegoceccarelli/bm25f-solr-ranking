@@ -1,0 +1,322 @@
+/**
+ *  Copyright 2011 Diego Ceccarelli
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+package eu.europeana.assets.service.ir.text.domain;
+
+import org.apache.log4j.Logger;
+
+import java.util.Date;
+import java.util.List;
+
+import com.google.gson.Gson;
+
+import eu.europeana.assets.utils.KeyAndFrequency;
+import eu.europeana.assets.utils.Multiset;
+
+/**
+ * JsonStat.java
+ * 
+ * @author Diego Ceccarelli, diego.ceccarelli@isti.cnr.it created on 28/dic/2011
+ */
+public class JsonStat {
+	/**
+	 * Logger for this class
+	 */
+	private static final Logger logger = Logger.getLogger(JsonStat.class);
+
+	private static final long serialVersionUID = -6296262050145931252L;
+
+	public static final int DAY_TYPE = 0;
+	public static final int MONTH_TYPE = 1;
+
+	private String top100Queries = "";
+	private transient Multiset<String> top100QueriesSet;
+	private int numberOfQueries = 0;
+	private int numberOfDistinctQueries = 0;
+	private long numberOfQueryTerms = 0;
+	private int numberOfUsers = 0;
+	private int numberOfSessions = 0;
+	private transient Multiset<Integer> numberOfSessionsPerHourSet;
+	private String numberOfSessionsPerHour = "";
+	private transient Multiset<String> numberOfSessionsPerDaySet;
+	private String numberOfSessionsPerDay = "";
+	private int numberOfSuccessfulSessions = 0;
+	private int numberOfUnsuccessfulSessions = 0;
+	private int type = 0;
+	private long date = 0L;
+
+	private static Gson gson = new Gson();
+
+	public JsonStat() {
+	}
+
+	public JsonStat(Stats s) {
+		
+		this.setTop100Queries(s.getTop100Queries());
+		this.setNumberOfQueries(s.getNumberOfQueries());
+		this.setNumberOfDistinctQueries(s.getNumberOfDistinctQueries());
+		this.setNumberOfQueryTerms(s.getNumberOfQueryTerms());
+		this.setNumberOfUsers(s.getNumberOfUsers());
+		this.setNumberOfSessions(s.getNumberOfSessions());
+		this.setNumberOfSessionsPerHour(s.getNumberOfSessionsPerHour());
+		this.setNumberOfSessionsPerDay(s.getNumberOfSessionsPerDay());
+		this.setNumberOfSuccessfulSessions(s.getNumberOfSuccessfulSessions());
+		this.setNumberOfUnsuccessfulSessions(s
+				.getNumberOfUnsuccessfulSessions());
+		this.setType(s.getType());
+		this.setDate(s.getDate());
+		logger.info("loaded "+ this.toString());
+	}
+
+	public Stats toStat() {
+		Stats s = new StatsImpl();
+		s.setTop100Queries(this.getTop100Queries());
+		s.setNumberOfQueries(this.getNumberOfQueries());
+		s.setNumberOfDistinctQueries(this.getNumberOfDistinctQueries());
+		s.setNumberOfQueryTerms(this.getNumberOfQueryTerms());
+		s.setNumberOfUsers(this.getNumberOfUsers());
+		s.setNumberOfSessions(this.getNumberOfSessions());
+		s.setNumberOfSessionsPerHour(this.getNumberOfSessionsPerHour());
+		s.setNumberOfSessionsPerDay(this.getNumberOfSessionsPerDay());
+		s.setNumberOfSuccessfulSessions(this.getNumberOfSuccessfulSessions());
+		s.setNumberOfUnsuccessfulSessions(this
+				.getNumberOfUnsuccessfulSessions());
+		s.setType(this.getType());
+		s.setDate(this.getDate());
+		
+		
+		return s;
+	}
+
+	public String toJson() {
+		return gson.toJson(this, JsonStat.class);
+	}
+
+	public static JsonStat fromJson(String jsonStat) {
+		return gson.fromJson(jsonStat, JsonStat.class);
+	}
+
+	public String getTop100Queries() {
+		return top100Queries;
+	}
+
+	public Multiset<String> getTop100QueriesSet() {
+
+		if (top100QueriesSet == null) {
+			List<KeyAndFrequency> queries = KeyAndFrequency.listFromJson(top100Queries);
+			top100QueriesSet = new Multiset<String>(queries);
+		}
+		return top100QueriesSet;
+	}
+
+	public Multiset<Integer> getNumberOfSessionsPerHourSet() {
+
+		if (numberOfSessionsPerHourSet == null) {
+			
+			List<KeyAndFrequency> list = KeyAndFrequency.listFromJson(numberOfSessionsPerHour,
+					Integer.class);
+			numberOfSessionsPerHourSet = new Multiset<Integer>(list);
+		}
+		return numberOfSessionsPerHourSet;
+	}
+
+	public Multiset<String> getnumberOfSessionsPerDaySet() {
+
+		if (numberOfSessionsPerDaySet == null) {
+			
+			List<KeyAndFrequency> list = KeyAndFrequency.listFromJson(numberOfSessionsPerDay);
+			numberOfSessionsPerDaySet = new Multiset<String>(list);
+		}
+		return numberOfSessionsPerDaySet;
+	}
+
+	public void setTop100Queries(String top100QueriesInJson) {
+		top100Queries = top100QueriesInJson;
+	}
+
+	public JsonStat addStat(JsonStat j) {
+		JsonStat s = new JsonStat();
+		s.setNumberOfQueries(this.getNumberOfQueries()
+				+ j.getNumberOfQueries());
+		s.setNumberOfDistinctQueries(this.getNumberOfDistinctQueries()
+				+ j.getNumberOfDistinctQueries());
+		s.setNumberOfQueryTerms((this.getNumberOfQueryTerms() + j
+				.getNumberOfQueryTerms()));
+		s.setNumberOfUsers(this.getNumberOfUsers() + j.getNumberOfUsers());
+		s.setNumberOfSessions(this.getNumberOfSessions()
+				+ j.getNumberOfSessions());
+		Multiset<String> left = this.getTop100QueriesSet();
+		Multiset<String> right = j.getTop100QueriesSet();
+		left.addAll(right);
+		List<KeyAndFrequency> sortedQueries = left.sortByDescFrequency();
+		if (sortedQueries.size() > 100) {
+			sortedQueries = sortedQueries.subList(0, 100);
+		}
+	
+		s.setTop100Queries(KeyAndFrequency.listToJson(sortedQueries).toString());
+		System.out.println("add "+(new Date(j.getDate()))+" "+s.getAverageLengthOfAQuery());
+
+		Multiset<Integer> hleft = this.getNumberOfSessionsPerHourSet();
+		Multiset<Integer> hright = j.getNumberOfSessionsPerHourSet();
+		hleft.addAll(hright);
+
+		s.setNumberOfSessionsPerHour(KeyAndFrequency.listToJson(hleft.sortByKeys()).toString());
+
+		left = this.getnumberOfSessionsPerDaySet();
+		right = j.getnumberOfSessionsPerDaySet();
+		left.addAll(right);
+		s.setNumberOfSessionsPerDay(KeyAndFrequency.listToJson(left.sortByKeys()).toString());
+
+		s.setNumberOfSuccessfulSessions(this.getNumberOfSuccessfulSessions()
+				+ j.getNumberOfSessions());
+		s.setNumberOfUnsuccessfulSessions(this
+				.getNumberOfUnsuccessfulSessions()
+				+ j.getNumberOfSuccessfulSessions());
+		s.setType(this.getType());
+		s.setDate(this.getDate());
+		return s;
+	}
+
+	public static JsonStat cumulativeStat(List<JsonStat> statList) {
+		if (statList.isEmpty())
+			return new JsonStat();
+		if (statList.size() == 1)
+			return statList.get(0);
+		JsonStat res = statList.get(0).addStat(statList.get(1));
+		for (int i = 2; i < statList.size(); i++) {
+			res = res.addStat(statList.get(i));
+		}
+		return res;
+	}
+
+	public int getNumberOfQueries() {
+		return numberOfQueries;
+	}
+
+	public void setNumberOfQueries(int numberOfQueries) {
+		this.numberOfQueries = numberOfQueries;
+	}
+
+	public int getNumberOfDistinctQueries() {
+		return numberOfDistinctQueries;
+	}
+
+	public void setNumberOfDistinctQueries(int numberOfDistinctQueries) {
+		this.numberOfDistinctQueries = numberOfDistinctQueries;
+
+	}
+	
+	public long getNumberOfQueryTerms() {
+		return numberOfQueryTerms;
+	}
+
+	public void setNumberOfQueryTerms(long numberOfQueryTerms) {
+		this.numberOfQueryTerms = numberOfQueryTerms;
+	}
+
+
+	public double getAverageLengthOfAQuery() {
+		if (getNumberOfQueries() == 0) return 0;
+		return getNumberOfQueryTerms()/(double)getNumberOfQueries();
+	}
+
+	public int getNumberOfUsers() {
+		return numberOfUsers;
+	}
+
+	public void setNumberOfUsers(int numberOfUsers) {
+		this.numberOfUsers = numberOfUsers;
+	}
+
+	public int getNumberOfSessions() {
+		return numberOfSessions;
+	}
+
+	public void setNumberOfSessions(int numberOfSessions) {
+		this.numberOfSessions = numberOfSessions;
+	}
+
+	public String toString() {
+		return "Stats "+new Date(getDate()).toString()+ "\n \t["
+				//" getTop100Queries()=" + getTop100Queries()
+				+   " getNumberOfQueries()=" + getNumberOfQueries()
+				+ ", getNumberOfDistinctQueries()="
+				+ getNumberOfDistinctQueries()
+				+ ", getAverageLengthOfAQuery()=" + getAverageLengthOfAQuery()
+				+ ", getNumberOfUsers()=" + getNumberOfUsers()
+				+ ", getNumberOfSessions()=" + getNumberOfSessions()
+				//+ ", getNumberOfSessionsPerHour()="
+				//+ getNumberOfSessionsPerHour()
+				//+ ", getNumberOfSessionsPerDay()="
+				//+ getNumberOfSessionsPerDay()
+				+ ", getNumberOfSuccessfulSessions()="
+				+ getNumberOfSuccessfulSessions()
+				+ ", getNumberOfUnsuccessfulSessions()="
+				+ getNumberOfUnsuccessfulSessions() + ", getType()="
+				+ getType() +  "]";
+	}
+
+	public String getNumberOfSessionsPerHour() {
+		return numberOfSessionsPerHour;
+	}
+
+	public void setNumberOfSessionsPerHour(String numberOfSessionsPerHourInJson) {
+		this.numberOfSessionsPerHour = numberOfSessionsPerHourInJson;
+
+	}
+
+	public String getNumberOfSessionsPerDay() {
+		return numberOfSessionsPerDay;
+
+	}
+
+	
+
+	public void setNumberOfSessionsPerDay(String numberOfSessionsPerDayInJson) {
+		this.numberOfSessionsPerDay = numberOfSessionsPerDayInJson;
+	}
+
+	public int getNumberOfSuccessfulSessions() {
+		return numberOfSuccessfulSessions;
+	}
+
+	public void setNumberOfSuccessfulSessions(int numberOfSuccessfulSessions) {
+		this.numberOfSuccessfulSessions = numberOfSuccessfulSessions;
+	}
+
+	public int getNumberOfUnsuccessfulSessions() {
+		return numberOfUnsuccessfulSessions;
+	}
+
+	public void setNumberOfUnsuccessfulSessions(int numberOfUnsuccessfulSessions) {
+		this.numberOfUnsuccessfulSessions = numberOfUnsuccessfulSessions;
+	}
+
+	public int getType() {
+		return type;
+	}
+
+	public void setType(int t) {
+		type = t;
+	}
+
+	public long getDate() {
+		return date;
+	}
+
+	public void setDate(long date) {
+		this.date = date;
+	}
+}

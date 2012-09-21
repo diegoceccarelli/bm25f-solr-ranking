@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 124
+/svn/!svn/ver/16454/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/domain
+END
+AverageFieldLengths.java
+K 25
+svn:wc:ra_dav:version-url
+V 149
+/svn/!svn/ver/16454/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/domain/AverageFieldLengths.java
+END
+JsonStat.java
+K 25
+svn:wc:ra_dav:version-url
+V 138
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/domain/JsonStat.java
+END
+VirtualDocument.java
+K 25
+svn:wc:ra_dav:version-url
+V 145
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/domain/VirtualDocument.java
+END
+QueryAssessment.java
+K 25
+svn:wc:ra_dav:version-url
+V 145
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/domain/QueryAssessment.java
+END

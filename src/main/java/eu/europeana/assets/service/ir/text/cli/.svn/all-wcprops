@@ -1,0 +1,77 @@
+K 25
+svn:wc:ra_dav:version-url
+V 121
+/svn/!svn/ver/16471/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/cli
+END
+GetStatsFromMongoDbCLI.java
+K 25
+svn:wc:ra_dav:version-url
+V 149
+/svn/!svn/ver/15778/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/cli/GetStatsFromMongoDbCLI.java
+END
+GetAverageFieldLengths.java
+K 25
+svn:wc:ra_dav:version-url
+V 149
+/svn/!svn/ver/16454/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/cli/GetAverageFieldLengths.java
+END
+CompareBm25AndEuropeanaRanksCLI.java
+K 25
+svn:wc:ra_dav:version-url
+V 158
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/cli/CompareBm25AndEuropeanaRanksCLI.java
+END
+LearningToRankCLI.java
+K 25
+svn:wc:ra_dav:version-url
+V 144
+/svn/!svn/ver/16471/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/cli/LearningToRankCLI.java
+END
+StoreJsonLogsOnMongoDbCLI.java
+K 25
+svn:wc:ra_dav:version-url
+V 152
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/cli/StoreJsonLogsOnMongoDbCLI.java
+END
+StoreStatsOnMongoDbCLI.java
+K 25
+svn:wc:ra_dav:version-url
+V 149
+/svn/!svn/ver/15778/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/cli/StoreStatsOnMongoDbCLI.java
+END
+GenerateVirtualDocumentCLI.java
+K 25
+svn:wc:ra_dav:version-url
+V 153
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/cli/GenerateVirtualDocumentCLI.java
+END
+GenerateLearningToRankAssessmentsCLI.java
+K 25
+svn:wc:ra_dav:version-url
+V 163
+/svn/!svn/ver/16454/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/cli/GenerateLearningToRankAssessmentsCLI.java
+END
+IndexSuggestionsCLI.java
+K 25
+svn:wc:ra_dav:version-url
+V 146
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/cli/IndexSuggestionsCLI.java
+END
+ParseQueryLogFileCLI.java
+K 25
+svn:wc:ra_dav:version-url
+V 147
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/cli/ParseQueryLogFileCLI.java
+END
+AbstractCommandLineInterface.java
+K 25
+svn:wc:ra_dav:version-url
+V 155
+/svn/!svn/ver/15745/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/cli/AbstractCommandLineInterface.java
+END
+SessionizeQueryLogFileCLI.java
+K 25
+svn:wc:ra_dav:version-url
+V 152
+/svn/!svn/ver/15783/assets/branches/eu_integration/services/ir-text/src/main/java/eu/europeana/assets/service/ir/text/cli/SessionizeQueryLogFileCLI.java
+END

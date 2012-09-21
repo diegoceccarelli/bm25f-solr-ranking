@@ -1,0 +1,313 @@
+package eu.europeana.assets.service.ir.text.domain;
+
+
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+
+import org.apache.log4j.Logger;
+import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.impl.CommonsHttpSolrServer;
+import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrDocumentList;
+
+import eu.europeana.assets.service.ir.text.IRTextConfiguration;
+
+public class QueryAssessment {
+	private final static String URI_PREFIX = "http://www.europeana.eu/resolve/record";
+	
+	private static CommonsHttpSolrServer server;
+	private String query;
+	List<DocumentAndRelevance> documentsRelevance; 
+	private static Logger logger = Logger.getLogger(QueryAssessment.class);
+	private static IRTextConfiguration irTextConfig;
+	
+	
+	public QueryAssessment(String query,
+			List<DocumentAndRelevance> documentsRelevance) {
+		super();
+		this.query = query;
+		this.documentsRelevance = documentsRelevance;
+		irTextConfig = new IRTextConfiguration();
+		irTextConfig.init();
+	
+	}
+	
+
+	public QueryAssessment(String query) {
+		super();
+		logger.debug("Created query assessment for query "+query);
+		this.query = query;
+		this.documentsRelevance = new LinkedList<DocumentAndRelevance>();
+		irTextConfig = new IRTextConfiguration();
+		irTextConfig.init();
+
+
+	}
+
+
+	public void addDocument(String doc, Integer relevance){
+		logger.debug("Original relavance "+relevance);
+		relevance = (int) (Math.log(relevance) / Math.log(2d)) + 1 ;
+		logger.debug("Relevance set to "+relevance);
+		this.documentsRelevance.add(new DocumentAndRelevance(doc,relevance));
+	}
+
+	public static QueryAssessment loadAssessment(File assessmentFile){
+		QueryAssessment qa;
+		BufferedReader br = null;
+		try {
+			br = new BufferedReader(new FileReader(assessmentFile));
+		} catch (FileNotFoundException e) {
+			logger.error("file "+assessmentFile+" not found.");
+			return null;
+		}
+		try {
+			String line= br.readLine();
+			String query = line.replace("#QUERY= ","");
+			qa = new QueryAssessment(query);
+			while ((line = br.readLine()) != null){
+				if (line.trim().isEmpty()) continue;
+				logger.debug("line "+line);
+				String[] relevanceDoc = line.split("\t");
+				qa.addDocument(relevanceDoc[1], Integer.parseInt(relevanceDoc[0]));
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			logger.error(e.toString() +"in file "+assessmentFile+" ");
+			return null;
+		}
+		return qa;
+		
+	}
+	
+	public String getQuery() {
+		return query;
+	}
+
+	public void setQuery(String query) {
+		this.query = query;
+	}
+
+	public List<DocumentAndRelevance> getDocumentsRelevance() {
+		return documentsRelevance;
+	}
+
+	public void setDocumentsRelevance(List<DocumentAndRelevance> documentsRelevance) {
+		this.documentsRelevance = documentsRelevance;
+	}
+	
+	public boolean contain(String doc){
+		return getRelevance(doc) > 0;
+	}
+	
+	public int getRelevance(String doc){
+		for (DocumentAndRelevance d : documentsRelevance){
+			if (d.getDoc().equals(doc)){
+				return d.getRelevance();
+			}
+		}
+		return 0;
+	}
+	
+	/**
+	 * Compute NDCG(k) with the given query.
+	 * 
+	 * @param k number of results to take into account.
+	 * @param query query for generating the ranking.
+	 * @param ignoreUris uris to ignore when computing ndgc.
+	 * @return NDCG(k) score of the ranking.
+	 */
+	public double ndcg(int k, SolrQuery query, Set<String> ignoreUris) {
+		query.setRows(k);
+		List<String> results = QueryAssessment.retrieveTopDocuments(query);
+		//TODO(oscar): verify that the ndcg is computed correctly when docs are filtered.
+		if (results.size() > 0) {
+			results = filterResults(results, ignoreUris);
+		}
+		return ndcg(k, results);
+	}
+	
+	public static List<String> filterResults(
+			List<String> results, Set<String> ignoreUris) {
+		List<String> filteredResults =
+			new ArrayList<String>(results.size() - ignoreUris.size());
+		for (String uri : results) {
+			if (!ignoreUris.contains(URI_PREFIX + uri)) {
+				filteredResults.add(uri);
+			}
+		}
+		return filteredResults;
+	}
+	
+	public double dcg(int pos, List<String> doc){
+		double dcg = 0d;
+		int k = 1;
+		for (String d : doc){
+			if (k == 1){
+				logger.debug("DCG add "+getRelevance(d));
+				dcg += getRelevance(d);
+				k++;
+				continue;
+			}
+			if (k > pos) break;
+			logger.debug("k = "+k+" DCG add "+getRelevance(d)/(Math.log(k)/Math.log(2)));
+			dcg += getRelevance(d)/(Math.log(k)/Math.log(2));
+			k++;
+		}
+		
+		return dcg;
+	}
+	
+	
+	public double ndcg(int pos, List<String> doc){
+		double ndcg = 0d;
+		double dcg = dcg(pos,doc);
+		double idcg = idcg(pos);
+		ndcg = dcg/idcg;
+		logger.debug("dcg = "+dcg );
+		logger.debug("idcg = "+idcg );
+		logger.debug("ndcg = "+ndcg );
+		return ndcg;
+	}
+	
+	public double europeanaNdcg(int pos){
+		SolrQuery solrQuery = new SolrQuery();
+		solrQuery.setQuery(getQuery());
+		solrQuery.setRows(pos);
+
+		// log search for debugging
+		logger.debug("europeana query: "+solrQuery);
+		List<String> results = retrieveTopDocuments(solrQuery);
+		return ndcg(pos,results);
+	}
+	
+	public double bm25fNdcg(int pos){
+		SolrQuery solrQuery = new SolrQuery();
+		solrQuery.setQuery(getQuery());
+		solrQuery.set("defType","bm25f");
+		solrQuery.setRows(pos);
+
+		// log search for debugging
+		logger.debug("bm25f query: "+solrQuery);
+		List<String> results = retrieveTopDocuments(solrQuery);
+		return ndcg(pos,results);
+	}
+	
+	public double bm25fNdcg(int pos, String k1, String boosts, String bParams){
+		SolrQuery solrQuery = new SolrQuery();
+		solrQuery.setQuery(getQuery());
+		solrQuery.set("defType","bm25f");
+		solrQuery.set("k1",k1);
+		solrQuery.set("boosts",boosts);
+		solrQuery.set("b",bParams);
+		solrQuery.setRows(pos);
+
+		// log search for debugging
+		logger.debug("bm25f query: "+solrQuery);
+		List<String> results = retrieveTopDocuments(solrQuery);
+		return ndcg(pos,results);
+	}
+	
+	
+	
+	public static List<String> retrieveTopDocuments(SolrQuery solrQuery){
+		List<String> results = new ArrayList<String>(solrQuery.getRows());
+		String serverUrl = "";
+		if (server == null){
+			try {
+				irTextConfig = new IRTextConfiguration();
+				irTextConfig.init();
+				serverUrl = irTextConfig.getConfigProperty("solr.server.metadata");		
+				logger.info("server url = "+serverUrl);
+				server = new CommonsHttpSolrServer(serverUrl);
+			} catch (MalformedURLException e) {
+				logger.error("server url "+serverUrl+" is malformed "+"("+e.toString()+")");
+				System.exit(-1);
+			}
+			
+		}
+		try {
+			if (server == null){
+				logger.error("invalid server");
+				System.exit(-1);
+			}
+			QueryResponse qr = server.query(solrQuery);
+			SolrDocumentList res = qr.getResults();
+			int len = URI_PREFIX.length();
+			for (SolrDocument solrDoc : res){
+				String doc = (String)solrDoc.getFieldValue("europeana_uri");
+				doc = doc.substring(len);
+				logger.debug(doc);
+				results.add(doc);
+			}
+		} catch (SolrServerException e) {
+			logger.error("Solr threw an exception for query: " + solrQuery);
+		}
+		return results;
+	}
+	
+	private double idcg(int pos) {
+		double idcg = 0d;
+		int k = 1;
+		for (DocumentAndRelevance dr : documentsRelevance){
+			if (k > pos) break;
+			if (k == 1){
+				idcg += dr.getRelevance();
+				k++;
+				continue;
+			}
+			idcg += dr.getRelevance()/(Math.log(k)/Math.log(2));	
+			k++;
+		}
+		return idcg;
+	}
+
+
+	public int size(){
+		return documentsRelevance.size();
+	}
+	
+	@Override
+	public String toString(){
+		StringBuilder sb = new StringBuilder("query = "+query+"\n");
+		for (DocumentAndRelevance dr : documentsRelevance){
+			sb.append(dr.toString()).append("\n");
+		}
+		return sb.toString();
+	}
+
+	public class DocumentAndRelevance{
+		public String doc;
+		public Integer relevance; 
+		
+		public  DocumentAndRelevance(String doc, Integer relevance){
+			this.doc = doc;
+			this.relevance = relevance;
+		}
+		
+		public String getDoc(){
+			return doc;
+		}
+		
+		public Integer getRelevance(){
+			return relevance;
+		}
+		
+		@Override 
+		public String toString(){
+			return relevance+"\t"+doc;
+		}
+	}
+
+}

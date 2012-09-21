@@ -1,0 +1,62 @@
+/**
+ *  Copyright 2011 Diego Ceccarelli
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+package eu.europeana.assets.service.ir.text.cli;
+
+import eu.europeana.assets.service.ir.text.domain.VirtualDocument;
+import eu.europeana.assets.service.ir.text.querylog.reader.ng.EuropeanaJsonSessionReader;
+import eu.europeana.assets.service.ir.text.querylog.reader.ng.EuropeanaRawQuerylogReader;
+import eu.europeana.assets.service.ir.text.querylog.record.ng.EuropeanaRecord;
+import eu.europeana.assets.service.ir.text.querylog.session.ng.Session;
+import eu.europeana.assets.service.ir.text.querylog.suggestion.SessionCleaner;
+
+/**
+ * AbstractCommandLineInterface.java
+ * 
+ * @author Diego Ceccarelli, diego.ceccarelli@isti.cnr.it created on 09/ott/2011
+ */
+
+public class GenerateVirtualDocumentCLI extends AbstractCommandLineInterface {
+	
+	protected static String usage = "java -cp $jar " + GenerateVirtualDocumentCLI.class
+			+ " -input fileinput -output fileoutput -solr solr core path";
+	
+	protected static String[] params = new String[] {INPUT, OUTPUT, "solr"};
+
+	public GenerateVirtualDocumentCLI(String[] args) {
+		super(args);
+	}
+	
+	public GenerateVirtualDocumentCLI(String[] args, String[] parameters,String usage) {
+		super(args,parameters,usage);
+	}
+	
+
+	public static void main(String[] args) {
+		GenerateVirtualDocumentCLI cli = new GenerateVirtualDocumentCLI(args,params,usage);
+		String input = cli.getInput();
+		cli.openOutput();
+		String solrPath = cli.getParam("solr");
+		SessionCleaner cleaner = new SessionCleaner(solrPath);
+		EuropeanaJsonSessionReader reader = new EuropeanaJsonSessionReader(input);
+		for (Session session : reader) {
+			VirtualDocument vd = cleaner.clean(session);
+			if (vd != null) cli.writeLineInOutput(vd.toJson());
+		}
+		cli.closeOutput();
+		System.exit(0);
+	}
+
+}

@@ -1,0 +1,266 @@
+/**
+ *  Copyright 2011 Diego Ceccarelli
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+package eu.europeana.assets.service.ir.text.util;
+
+
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+
+/**
+ * Multiset.java
+ *
+ * @author Diego Ceccarelli, diego.ceccarelli@isti.cnr.it
+ * created on 18/ott/2011
+ */
+public class Multiset<K> implements Collection<K>  {
+	
+	private TreeMap<K, Integer> multiset = new TreeMap();
+	private int total = 0;
+
+	public boolean add(K key, int v) {
+		total += v;
+		if (multiset.containsKey(key)){
+			multiset.put(key, multiset.get(key) + v );
+			return true;
+		}
+		else {
+			multiset.put(key, v);
+		}
+		return false;
+	}
+
+	/* (non-Javadoc)
+	 * @see java.util.Set#addAll(java.util.Collection)
+	 */
+	public boolean addAll(Multiset<? extends K> set) {
+		for (K elem : set){
+			this.add(elem, set.getValue(elem));
+		}
+		return false;
+	}
+
+	/**
+	 * @param elem
+	 * @return
+	 */
+	public int getValue(Object elem) {
+		if (multiset.containsKey(elem))
+			return multiset.get(elem);
+		return -1;
+	}
+
+	/* (non-Javadoc)
+	 * @see java.util.Set#clear()
+	 */
+	public void clear() {
+		multiset.clear();
+		
+	}
+
+	/* (non-Javadoc)
+	 * @see java.util.Set#contains(java.lang.Object)
+	 */
+	public boolean contains(Object key) {
+		return multiset.containsKey(key);
+	}
+
+	/* (non-Javadoc)
+	 * @see java.util.Set#containsAll(java.util.Collection)
+	 */
+	public boolean containsAll(Collection<?> arg0) {
+		throw new UnsupportedOperationException();
+	}
+
+	/* (non-Javadoc)
+	 * @see java.util.Set#isEmpty()
+	 */
+	public boolean isEmpty() {
+		return multiset.isEmpty();
+	}
+	
+	/**
+	 * returns a new multisect containing the intersection of the two multiset.
+	 * Frequencies are the frequencies of this object
+	 * @param m the multiset to intersect
+	 * @return
+	 */
+	public Multiset<K> intersect(Multiset<K> m){
+		Multiset<K> intersection = new Multiset<K>();
+		for (K elem : m){
+			if (this.contains(elem)){
+				intersection.add(elem, this.getValue(elem));
+			}
+		}
+		return intersection;
+	}
+
+	/* (non-Javadoc)
+	 * @see java.util.Set#iterator()
+	 */
+	public Iterator<K> iterator() {
+		return multiset.keySet().iterator();
+	}
+
+	/* (non-Javadoc)
+	 * @see java.util.Set#remove(java.lang.Object)
+	 */
+	public boolean remove(Object key) {
+		total -= multiset.get(key);
+		return multiset.remove(key) > 0;
+	}
+
+	/* (non-Javadoc)
+	 * @see java.util.Set#removeAll(java.util.Collection)
+	 */
+	public boolean removeAll(Collection<?> arg0) {
+		throw new UnsupportedOperationException();
+	}
+
+	/* (non-Javadoc)
+	 * @see java.util.Set#retainAll(java.util.Collection)
+	 */
+	public boolean retainAll(Collection<?> arg0) {
+		throw new UnsupportedOperationException();
+	}
+
+	/* (non-Javadoc)
+	 * @see java.util.Set#size()
+	 */
+	public int size() {
+		return multiset.size();
+	}
+
+	/* (non-Javadoc)
+	 * @see java.util.Set#toArray()
+	 */
+	public Object[] toArray() {
+		// TODO Auto-generated method stub
+		return multiset.entrySet().toArray();
+	}
+
+	/* (non-Javadoc)
+	 * @see java.util.Set#toArray(T[])
+	 */
+	public <T> T[] toArray(T[] arg0) {
+		throw new UnsupportedOperationException();
+	}
+
+	/* (non-Javadoc)
+	 * @see java.util.Collection#add(java.lang.Object)
+	 */
+	public boolean add(K key) {
+		return this.add(key,1);
+	}
+
+	/* (non-Javadoc)
+	 * @see java.util.Collection#addAll(java.util.Collection)
+	 */
+	public boolean addAll(Collection<? extends K> c) {
+		for (K key : c){
+			this.add(key, 1);
+		}
+		return true;
+	}
+	
+	@Override
+	public String toString(){
+		StringBuilder sb = new StringBuilder();
+		for (K el : this){
+			sb.append(el).append("\t").append(this.getValue(el)).append("\n");
+		}
+		return sb.toString();
+	}
+	
+	public int getTotal(){
+		return total;
+	}
+	
+	
+	public List<KeyAndFreq> sortByFrequency() {
+		List <KeyAndFreq> items = new ArrayList<KeyAndFreq>();
+		for (Map.Entry<K, Integer> entry : multiset.entrySet()){
+			items.add(new KeyAndFreq(entry.getKey(), entry.getValue()));	
+		}
+		Collections.sort(items);
+		return items;
+		
+	}
+
+	
+	public class KeyAndFreq implements Comparable{
+		@Override
+		public String toString() {
+			return "KeyAndFreq [key=" + key + ", freq=" + freq + "]";
+		}
+
+
+
+		private K key;
+		private int freq;
+		
+		
+		
+		public KeyAndFreq(K key, int freq) {
+			super();
+			this.key = key;
+			this.freq = freq;
+		}
+
+
+
+		public K getKey() {
+			return key;
+		}
+
+
+
+		public void setKey(K key) {
+			this.key = key;
+		}
+
+
+
+		public int getFreq() {
+			return freq;
+		}
+
+
+
+		public void setFreq(int freq) {
+			this.freq = freq;
+		}
+
+
+
+		@Override
+		public int compareTo(Object o) {
+			if (! (o instanceof Multiset.KeyAndFreq)) return -1;
+			KeyAndFreq kf = (KeyAndFreq)o;
+			return kf.freq - freq;
+		} 
+		
+	}
+
+}
+

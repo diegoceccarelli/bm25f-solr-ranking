@@ -1,0 +1,121 @@
+/**
+ *  Copyright 2012 Diego Ceccarelli
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+package eu.europeana.assets.service.ir.text.util;
+
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.util.Iterator;
+
+import org.apache.log4j.Logger;
+
+import eu.europeana.assets.service.ir.text.querylog.record.ng.EuropeanaRecordImpl;
+import eu.europeana.assets.service.ir.text.util.IOUtils;
+
+
+
+/**
+ * BaseItemReader.java
+ * 
+ * @author Diego Ceccarelli, diego.ceccarelli@isti.cnr.it created on 25/gen/2012
+ */
+public class BaseItemReader<T extends Item> implements ItemReader<T> {
+	private transient Logger logger = Logger
+			.getLogger(BaseItemReader.class);
+
+	private BufferedReader br;
+	private StringBuilder sb;
+	private String input;
+	private T typeInstance;
+
+	public BaseItemReader(String inputFile, T typeInstance) {
+		input = inputFile;
+		this.typeInstance = typeInstance;
+	}
+
+	public Iterator<T> iterator() {
+		return new BaseItemIterator<T>();
+	}
+
+	private class BaseItemIterator<T extends Item> implements Iterator<T> {
+
+		private BufferedReader br;
+		T next = null;
+		private boolean found = false;
+		private boolean eof = false;
+		String nextLine = "";
+
+		public BaseItemIterator() {
+			br = IOUtils.getPlainOrCompressedUTF8Reader(input.toString());
+			while ((!found) && (!eof)) {
+				next = parseNextItem();
+			}
+
+		}
+
+		private T parseNextItem() {
+			nextLine = "";
+			try {
+				nextLine = br.readLine();
+				if (nextLine == null) {
+					eof = true;
+					return null;
+				}
+			} catch (IOException e) {
+//				logger.error("reading from the file {} ({})", input,
+//						e.toString());
+				System.exit(-1);
+			}
+			if (!eof) {
+				try {
+					T t = (T) (typeInstance.parseItem(nextLine));
+					found = true;
+					return t;
+				} catch (Exception e) {
+ 					logger.error("Skipping invalid record ( "+
+						e.toString()+")");
+//					logger.error(nextLine);
+					found = false;
+					return null;
+				}
+			}
+			return null; 
+
+		}
+
+		public boolean hasNext() {
+			return ((!eof) && (found));
+		}
+
+		public T next() {
+			T toReturn = next;
+			found = false;
+			while ((!found) && (!eof)) {
+				next = parseNextItem();
+			}
+			return toReturn;
+		}
+
+		public void remove() {
+			throw new UnsupportedOperationException();
+		}
+		
+
+	}
+
+	
+}

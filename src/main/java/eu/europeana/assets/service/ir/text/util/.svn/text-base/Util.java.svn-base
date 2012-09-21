@@ -1,0 +1,141 @@
+/**
+ *  Copyright 2011 Diego Ceccarelli
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+package eu.europeana.assets.service.ir.text.util;
+
+/**
+ * Util.java
+ *
+ * @author Diego Ceccarelli, diego.ceccarelli@isti.cnr.it
+ * created on 08/ott/2011
+ */
+
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.zip.GZIPInputStream;
+
+/**
+ * Util.java
+ * 
+ * @author Diego Ceccarelli, diego.ceccarelli@isti.cnr.it created on 12/set/2011
+ */
+public class Util {
+
+	public static BufferedReader getPlainOrCompressedReader(String file)
+			throws IOException {
+		BufferedReader br = null;
+		try {
+			if (file.endsWith(".gz")) {
+				try {
+					br = new BufferedReader(new InputStreamReader(
+							new GZIPInputStream(new FileInputStream(file))));
+				} catch (IOException e) {
+					throw new IOException("opening the compressed file " + file);
+				}
+			} else {
+				br = new BufferedReader(new InputStreamReader(
+						new FileInputStream(file)));
+			}
+		} catch (FileNotFoundException e) {
+			throw new IOException("cannot find the file " + file);
+		}
+		return br;
+	}
+	
+	/**
+	 * Parse a date in format "dd/MM/yyyy"
+	 * 
+	 * @param param
+	 * @return
+	 * @throws ParseException
+	 */
+	public static Date parseDate(String date) throws ParseException {
+
+		DateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
+		Date d = (Date) formatter.parse(date);
+		return d;
+	}
+	
+	private static String convertToHex(byte[] data) { 
+        StringBuffer buf = new StringBuffer();
+        for (int i = 0; i < data.length; i++) { 
+            int halfbyte = (data[i] >>> 4) & 0x0F;
+            int two_halfs = 0;
+            do { 
+                if ((0 <= halfbyte) && (halfbyte <= 9)) 
+                    buf.append((char) ('0' + halfbyte));
+                else 
+                    buf.append((char) ('a' + (halfbyte - 10)));
+                halfbyte = data[i] & 0x0F;
+            } while(two_halfs++ < 1);
+        } 
+        return buf.toString();
+    } 
+ 
+    public static String MD5(String text) 
+    throws NoSuchAlgorithmException, UnsupportedEncodingException  { 
+        MessageDigest md;
+        md = MessageDigest.getInstance("MD5");
+        byte[] md5hash = new byte[32];
+        md.update(text.getBytes("iso-8859-1"), 0, text.length());
+        md5hash = md.digest();
+        return convertToHex(md5hash);
+    } 
+    
+    public static String cleanQuery(String query) {
+		// query = removeQueryFields(query);
+		query = deleteEuropeanaQueries(query);
+		if (query.isEmpty())
+			return "";
+		query = removeQueryFields(query);
+		query = removeSymbols(query);
+		query.replaceAll(":","");
+		return query;
+	}
+
+	private static String deleteEuropeanaQueries(String query) {
+		String[] toDelete = new String[] { "provider:", "type:",
+				"data_provider:", "enrichment_", "collectionname:",
+				"europeanaprovider:", "europeanauri:", "dcterms_extent:" };
+		for (String s : toDelete) {
+			if (query.contains(s))
+				return "";
+		}
+		return query;
+	}
+
+	private static String removeQueryFields(String query) {
+		return query.replaceAll("[^ ]+:", " ").trim();
+	}
+
+	private static String removeSymbols(String query) {
+		query = query.replaceAll("[\"+()#\\<>$%'-.;,?]", "");
+		query = query.replaceAll(" +", " ").trim();
+		return query;
+	}
+
+
+
+}

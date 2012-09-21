@@ -1,0 +1,166 @@
+/**
+ *  Copyright 2011 Diego Ceccarelli
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+package eu.europeana.assets.service.ir.text.cli;
+
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.List;
+
+import org.apache.log4j.Logger;
+
+import com.google.gson.Gson;
+
+import eu.europeana.assets.common.CommonApiServerConfiguration;
+import eu.europeana.assets.common.CommonApiServerConfigurationImpl;
+import eu.europeana.assets.common.dao.mongodb.IrTextMongoDbManager;
+import eu.europeana.assets.common.exception.ObjectNotFoundException;
+import eu.europeana.assets.common.exception.ObjectNotStoredException;
+import eu.europeana.assets.factory.AssetsAbstractFactory;
+import eu.europeana.assets.factory.AssetsAbstractFactoryImpl;
+import eu.europeana.assets.service.ir.text.domain.JsonStat;
+import eu.europeana.assets.service.ir.text.domain.Stats;
+import eu.europeana.assets.service.ir.text.domain.StatsImpl;
+import eu.europeana.assets.service.ir.text.util.Util;
+
+/**
+ * GetStatsFromMongoDbCLI.java
+ * 
+ * @author Diego Ceccarelli, diego.ceccarelli@isti.cnr.it created on 09/ott/2011
+ */
+
+public class GetStatsFromMongoDbCLI extends AbstractCommandLineInterface {
+
+	private static Logger logger = Logger
+			.getLogger(GetStatsFromMongoDbCLI.class);
+	protected static String usage = "java -cp $jar "
+			+ GetStatsFromMongoDbCLI.class + " -date MM/YYYY ";
+
+	protected static String[] params = new String[] { "from", "to", "folder" };
+
+	public GetStatsFromMongoDbCLI(String[] args) {
+		super(args);
+	}
+
+	public GetStatsFromMongoDbCLI(String[] args, String[] parameters,
+			String usage) {
+		super(args, parameters, usage);
+	}
+
+	public static void main(String[] args) throws ObjectNotStoredException,
+			ObjectNotFoundException {
+		GetStatsFromMongoDbCLI cli = new GetStatsFromMongoDbCLI(args, params,
+				usage);
+		CommonApiServerConfiguration conf = new CommonApiServerConfigurationImpl();
+		IrTextMongoDbManager mongoDb = new IrTextMongoDbManager();
+		AssetsAbstractFactory objectFactory = new AssetsAbstractFactoryImpl();
+		mongoDb.setObjectFactory(objectFactory);
+		mongoDb.setCommonApiServerConfiguration(conf);
+		mongoDb.init();
+		String from = "01/" + cli.getParam("from");
+		String to = "01/" + cli.getParam("to");
+		File folder = new File(cli.getParam("folder"));
+		if (!folder.exists()) {
+			folder.mkdir();
+		}
+		long start = System.currentTimeMillis();
+		Date fromDate = null, toDate = null;
+		try {
+			fromDate = Util.parseDate(from);
+			toDate = Util.parseDate(to);
+		} catch (ParseException e1) {
+			System.err
+					.println("error parsing field, please provide a date in format MM/yyyy");
+			System.exit(-1);
+		}
+		Calendar endMonth = GregorianCalendar.getInstance();
+		endMonth.setTime(fromDate);
+		endMonth.add(Calendar.MONTH, 1);
+		Date endMonthDate = endMonth.getTime();
+		Gson gson = new Gson();
+		while (fromDate.before(toDate)) {
+			List<Stats> stats = new ArrayList<Stats>();
+			DateFormat formatter = new SimpleDateFormat("yyyy_MM");
+			String outputFilename = "stats_" + formatter.format(fromDate)
+					+ ".json";
+			File outputFile = new File(folder.getPath(), outputFilename);
+			if (outputFile.exists()) {
+				logger.warn("stat file "
+						+ outputFilename
+						+ " yet exists, skipping. Remove it if you want to regenerate it");
+			} else {
+				Stats monthStat = mongoDb
+						.generateMonthStats(fromDate.getTime());
+				System.out.println("Month Stats: "+gson.toJson(monthStat, StatsImpl.class));
+				logger.info("generate day stats from " + fromDate + " to"
+						+ toDate);
+				stats = mongoDb.generateStatsOverDays(fromDate.getTime(),
+						endMonthDate.getTime());
+				stats.add(monthStat);
+				BufferedWriter out = null;
+				try {
+					out = new BufferedWriter(new OutputStreamWriter(
+							new FileOutputStream(outputFile), "UTF8"));
+				} catch (IOException e) {
+					System.err.println("writing the stats in output ("
+							+ e.toString() + ")");
+					System.exit(-1);
+				}
+				
+
+				for (Stats s : stats) {
+					try {
+						System.out.println(s.toString());
+						out.write(new JsonStat(s).toJson());
+						out.write("\n");
+					} catch (IOException e) {
+						System.err.println("writing the stats in output ("
+								+ e.toString() + ")");
+						System.exit(-1);
+					}
+				}
+				try {
+					out.close();
+				} catch (IOException e) {
+					System.err.println("closing the stats file ("
+							+ e.toString() + ")");
+					System.exit(-1);
+				}
+			}
+			fromDate = endMonthDate;
+			endMonth = GregorianCalendar.getInstance();
+			endMonth.setTime(fromDate);
+			endMonth.add(Calendar.MONTH, 1);
+			endMonthDate = endMonth.getTime();
+		}
+
+		long end = System.currentTimeMillis();
+		// String json =
+		// "{\"start\":\"Feb 13, 2011 5:02:51 AM\",\"end\":\"Feb 13, 2011 5:02:51 AM\",\"country\":\"Netherlands\",\"successful\":false,\"ip\":\"80.101.129.147\",\"userAgent\":\"check_http/v1.4.14 (nagios-plugins 1.4.14)\",\"queries\":[\"mozart\"],\"session\":[{\"query\":\"mozart\",\"cleanQuery\":\"mozart\",\"date\":\"Feb 13, 2011 5:02:51 AM\",\"page\":\"1\",\"hasQuery\":true,\"hasClick\":false}]}";
+		System.exit(0);
+
+	}
+
+}

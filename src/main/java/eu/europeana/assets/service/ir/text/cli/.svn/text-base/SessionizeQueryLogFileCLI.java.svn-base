@@ -1,0 +1,88 @@
+/**
+ *  Copyright 2011 Diego Ceccarelli
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+package eu.europeana.assets.service.ir.text.cli;
+
+import org.apache.log4j.Logger;
+
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+import eu.europeana.assets.service.ir.text.IRTextConfiguration;
+import eu.europeana.assets.service.ir.text.querylog.filter.ng.FilterSessionByQuery;
+import eu.europeana.assets.service.ir.text.querylog.session.ng.EuropeanaLogsSessionizer;
+
+import joptsimple.OptionParser;
+import joptsimple.OptionSet;
+
+
+/**
+ * AbstractCommandLineInterface.java
+ *
+ * @author Diego Ceccarelli, diego.ceccarelli@isti.cnr.it
+ * created on 09/ott/2011
+ */
+
+public class SessionizeQueryLogFileCLI extends AbstractCommandLineInterface {
+	/**
+	 * Logger for this class
+	 */
+	private static final Logger logger = Logger.getLogger(SessionizeQueryLogFileCLI.class);
+	
+	
+	protected static String usage = "java -cp $jar "
+			+ SessionizeQueryLogFileCLI.class + " -input file with json record -output outputfile -timespan timespan of a session";
+
+	protected static String[] params = new String[] { INPUT, OUTPUT, "timespan" };
+	
+	public SessionizeQueryLogFileCLI(String[] args) {
+		super(args);
+	}
+	
+	public SessionizeQueryLogFileCLI(String[] args, String[] parameters, String usage) {
+		super(args, parameters, usage);
+	}
+	
+	public static void main(String[] args) {
+		SessionizeQueryLogFileCLI cli = new SessionizeQueryLogFileCLI(args, params, usage );
+		String input = cli.getInput();
+		String output = cli.getOutput();
+		int timespan = 120;
+		try{
+			timespan =   Integer.parseInt(cli.getParam("timespan"));
+		} catch (NumberFormatException e){
+			logger.error("parsing the timespan (should be a number) ");
+			System.exit(-1);
+		}
+		EuropeanaLogsSessionizer sessionizer = new EuropeanaLogsSessionizer();
+		logger.info("sessionizing log "+input+" (timespan = "+timespan+" ) ");
+		FilterSessionByQuery filter = new FilterSessionByQuery();
+		sessionizer.addFilter(filter);
+		sessionizer.sessionize(input, output, timespan);
+		System.exit(0);
+		
+	}
+
+
+
+	
+}
